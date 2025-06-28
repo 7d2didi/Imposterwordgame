@@ -4,13 +4,82 @@
   <meta charset="UTF-8" />
   <title>Imposter Multiplayer</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    input, button { display: block; margin: 10px 0; padding: 8px; width: 100%; }
-    ul { padding-left: 1em; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #app {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      margin: 8px 0;
+      width: 100%;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 4px 0;
+    }
+    .hint-box {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .vote-btn {
+      background: #28a745;
+    }
+    .vote-btn:hover {
+      background: #1e7e34;
+    }
+    .danger-btn {
+      background: #dc3545;
+    }
+    .danger-btn:hover {
+      background: #a71d2a;
+    }
   </style>
 </head>
 <body>
-  <h1>Imposter Multiplayer</h1>
+  <h1>🎭 Imposter</h1>
   <div id="app"></div>
 
   <script>
@@ -26,7 +95,7 @@
     function showJoinScreen() {
       app.innerHTML = `
         <input id="nameInput" placeholder="Dein Name" />
-        <input id="roomInput" placeholder="Raumcode (z.B. ABCD)" />
+        <input id="roomInput" placeholder="Raumcode (z. B. ABCD)" />
         <button onclick="joinGame()">Beitreten</button>
       `;
     }
@@ -36,7 +105,7 @@
       roomCode = document.getElementById('roomInput').value.trim().toUpperCase();
       if (!playerName || !roomCode) return alert('Name und Raumcode eingeben!');
 
-      socket = new WebSocket('wss://imposter-server.onrender.com'); // 🔁 WSS-Adresse hier eintragen
+      socket = new WebSocket('wss://imposter-server.onrender.com');
 
       socket.onopen = () => {
         socket.send(JSON.stringify({ type: 'join', name: playerName, room: roomCode }));
@@ -46,9 +115,9 @@
         const data = JSON.parse(msg.data);
 
         if (data.type === 'lobbyUpdate') {
-          app.innerHTML = `<h3>Spieler in Lobby:</h3>
+          app.innerHTML = `<h3>🧑‍🤝‍🧑 Spieler in Lobby:</h3>
             <ul>${data.players.map(p => `<li>${p}</li>`).join('')}</ul>
-            <button onclick="startGame()">Spiel starten</button>`;
+            <button onclick="startGame()">🎮 Spiel starten</button>`;
         }
 
         if (data.type === 'gameStart') {
@@ -57,7 +126,7 @@
           currentTurn = data.currentTurn;
 
           const wordText = data.word === '???'
-            ? '🤫 Du bist der <b>IMPOSTER</b>! Versuche unauffällig zu bleiben.'
+            ? '<b>🤫 Du bist der IMPOSTER!</b>'
             : `🔐 Geheimes Wort: <b>${data.word}</b>`;
 
           renderTurn(wordText, []);
@@ -81,10 +150,10 @@
       let html = '';
 
       if (headerText) {
-        html += `<p>${headerText}</p>`;
+        html += `<div class="hint-box">${headerText}</div>`;
       }
 
-      html += `<p>🔄 Aktueller Spieler: <b>${currentTurn}</b></p>`;
+      html += `<p><b>🔄 Aktueller Spieler:</b> ${currentTurn}</p>`;
 
       if (isMyTurn) {
         html += `
@@ -94,13 +163,16 @@
       }
 
       if (turns && turns.length > 0) {
-        html += `<h3>Bisherige Hinweise:</h3><ul>${turns.map(t => `<li><b>${t.name}:</b> ${t.word}</li>`).join('')}</ul>`;
+        html += `<h3>💬 Hinweise:</h3>
+          <ul>${turns.map(t => `<li><b>${t.name}:</b> ${t.word}</li>`).join('')}</ul>`;
       }
 
       if (allowVoting) {
         html += `
-          <button onclick="showVote()">🗳 Abstimmen</button>
-          <button onclick="sendNextRound()">🔁 Weitere Runde</button>
+          <div class="btn-group">
+            <button class="vote-btn" onclick="showVote()">🗳 Imposter wählen</button>
+            <button onclick="sendNextRound()">🔁 Weitere Runde spielen</button>
+          </div>
         `;
       }
 
@@ -120,9 +192,9 @@
 
     function showVote() {
       const voteList = order.map(name => `
-        <button onclick="vote('${name}')">${name}</button>
+        <button class="danger-btn" onclick="vote('${name}')">${name}</button>
       `).join('');
-      app.innerHTML += `<h3>Wähle den Imposter:</h3>${voteList}`;
+      app.innerHTML += `<h3>🗳 Wähle den Imposter:</h3><div class="btn-group">${voteList}</div>`;
     }
 
     function vote(name) {
