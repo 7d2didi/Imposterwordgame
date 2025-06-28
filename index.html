@@ -33,7 +33,7 @@
       roomCode = document.getElementById('roomInput').value.trim();
       if (!name || !roomCode) return alert('Name und Raumcode eingeben!');
 
-      socket = new WebSocket('ws://localhost:8080');
+      socket = new WebSocket('wss://imposter-server.onrender.com');
 
       socket.onopen = () => {
         socket.send(JSON.stringify({ type: 'join', name, room: roomCode }));
