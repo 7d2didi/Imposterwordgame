@@ -7,7 +7,8 @@
     * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: #f2f2f2;
+      background: #181a1f;
+      color: #fff;
       margin: 0;
       padding: 20px;
       display: flex;
@@ -15,67 +16,60 @@
       align-items: center;
     }
     #app {
-      background: white;
-      border-radius: 12px;
+      background: #1f2128;
+      border-radius: 14px;
       padding: 24px;
       max-width: 500px;
       width: 100%;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
     h1 {
-      color: #333;
+      color: #f0f0f0;
       margin-bottom: 10px;
       text-align: center;
     }
     input, button {
-      padding: 10px;
-      margin: 8px 0;
+      padding: 12px;
+      margin: 10px 0;
       width: 100%;
       font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      border-radius: 8px;
+      border: none;
+    }
+    input {
+      background: #2b2e38;
+      color: #fff;
+      border: 1px solid #444;
     }
     button {
-      background: #007bff;
-      color: white;
-      border: none;
       cursor: pointer;
-      transition: background 0.3s;
+      font-weight: bold;
+      transition: 0.2s ease;
     }
     button:hover {
-      background: #0056b3;
+      transform: scale(1.02);
     }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      padding: 4px 0;
-    }
+    .btn-blue { background: #007bff; color: white; }
+    .btn-blue:hover { background: #0056b3; }
+    .btn-green { background: #28a745; color: white; }
+    .btn-green:hover { background: #1e7e34; }
+    .btn-red { background: #dc3545; color: white; }
+    .btn-red:hover { background: #a71d2a; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { padding: 6px 0; }
     .hint-box {
-      background: #f8f9fa;
-      padding: 10px;
-      border-radius: 8px;
-      margin-top: 10px;
+      background: #2e313d;
+      padding: 12px;
+      border-radius: 10px;
+      margin: 10px 0;
     }
     .btn-group {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 10px;
+      margin-top: 14px;
     }
-    .vote-btn {
-      background: #28a745;
-    }
-    .vote-btn:hover {
-      background: #1e7e34;
-    }
-    .danger-btn {
-      background: #dc3545;
-    }
-    .danger-btn:hover {
-      background: #a71d2a;
-    }
+    h3 { color: #ccc; }
   </style>
 </head>
 <body>
@@ -96,7 +90,7 @@
       app.innerHTML = `
         <input id="nameInput" placeholder="Dein Name" />
         <input id="roomInput" placeholder="Raumcode (z. B. ABCD)" />
-        <button onclick="joinGame()">Beitreten</button>
+        <button class="btn-blue" onclick="joinGame()">Beitreten</button>
       `;
     }
 
@@ -117,7 +111,7 @@
         if (data.type === 'lobbyUpdate') {
           app.innerHTML = `<h3>🧑‍🤝‍🧑 Spieler in Lobby:</h3>
             <ul>${data.players.map(p => `<li>${p}</li>`).join('')}</ul>
-            <button onclick="startGame()">🎮 Spiel starten</button>`;
+            <button class="btn-green" onclick="startGame()">🎮 Spiel starten</button>`;
         }
 
         if (data.type === 'gameStart') {
@@ -139,8 +133,8 @@
 
         if (data.type === 'gameOver') {
           app.innerHTML = data.imposter
-            ? `<h2>✅ Team hat den Imposter entlarvt!</h2><p>Es war: ${data.realImposter}</p>`
-            : `<h2>😈 Der Imposter hat gewonnen!</h2><p>Es war: ${data.realImposter}</p>`;
+            ? `<h2 style="color:#28a745;">✅ Team hat den Imposter entlarvt!</h2><p>Es war: ${data.realImposter}</p>`
+            : `<h2 style="color:#dc3545;">😈 Der Imposter hat gewonnen!</h2><p>Es war: ${data.realImposter}</p>`;
         }
       };
     }
@@ -158,7 +152,7 @@
       if (isMyTurn) {
         html += `
           <input id="wordInput" placeholder="Dein Hinweiswort" />
-          <button onclick="submitWord()">Wort abschicken</button>
+          <button class="btn-blue" onclick="submitWord()">Wort abschicken</button>
         `;
       }
 
@@ -170,8 +164,8 @@
       if (allowVoting) {
         html += `
           <div class="btn-group">
-            <button class="vote-btn" onclick="showVote()">🗳 Imposter wählen</button>
-            <button onclick="sendNextRound()">🔁 Weitere Runde spielen</button>
+            <button class="btn-red" onclick="showVote()">🗳 Imposter wählen</button>
+            <button class="btn-green" onclick="sendNextRound()">🔁 Weitere Runde spielen</button>
           </div>
         `;
       }
@@ -192,7 +186,7 @@
 
     function showVote() {
       const voteList = order.map(name => `
-        <button class="danger-btn" onclick="vote('${name}')">${name}</button>
+        <button class="btn-red" onclick="vote('${name}')">${name}</button>
       `).join('');
       app.innerHTML += `<h3>🗳 Wähle den Imposter:</h3><div class="btn-group">${voteList}</div>`;
     }
