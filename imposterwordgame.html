@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Imposter Wortspiel</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input, textarea, button { margin-top: 10px; display: block; }
+  </style>
+</head>
+<body>
+  <h1>Imposter Wortspiel</h1>
+  <div id="app"></div>
+
+  <script>
+    // --- Hier kommt der JavaScript-Code aus dem vorherigen Schritt ---
+    
+    const app = document.getElementById('app');
+
+    const state = {
+      players: [],
+      roundWords: [],
+      votes: {},
+      word: '',
+      imposter: '',
+      currentTurn: 0,
+      phase: 'setup',
+    };
+
+    function randomWord() {
+      const words = ['Pyramide', 'Banane', 'Flugzeug', 'Gitarre', 'Kaktus'];
+      return words[Math.floor(Math.random() * words.length)];
+    }
+
+    function setupGame(playerNames) {
+      state.players = playerNames.map(name => ({ name, word: '', isImposter: false }));
+      state.word = randomWord();
+      const imposterIndex = Math.floor(Math.random() * state.players.length);
+      state.imposter = state.players[imposterIndex].name;
+      state.players.forEach((p, i) => {
+        p.isImposter = i === imposterIndex;
+      });
+      state.phase = 'playing';
+      render();
+    }
+
+    function submitWord(playerName, word) {
+      const player = state.players.find(p => p.name === playerName);
+      if (player) {
+        player.word = word;
+        state.roundWords.push({ player: playerName, word });
+        state.currentTurn++;
+        if (state.currentTurn >= state.players.length) {
+          state.phase = 'voting';
+        }
+        render();
+      }
+    }
+
+    function vote(playerName) {
+      state.votes[playerName] = (state.votes[playerName] || 0) + 1;
+      if (Object.keys(state.votes).length >= state.players.length) {
+        endVoting();
+      }
+    }
+
+    function endVoting() {
+      const sorted = Object.entries(state.votes).sort((a, b) => b[1] - a[1]);
+      const [suspect, _] = sorted[0];
+      if (suspect === state.imposter) {
+        alert(`Imposter war ${suspect}. Team gewinnt!`);
+      } else {
+        alert(`Falsch gewählt! Imposter war ${state.imposter}. Imposter gewinnt!`);
+      }
+      state.phase = 'done';
+      render();
+    }
+
+    function render() {
+      app.innerHTML = '';
+
+      if (state.phase === 'setup') {
+        const input = document.createElement('textarea');
+        input.placeholder = 'Spieler mit Komma trennen (z.B. Anna,Bob,Cara)';
+        const btn = document.createElement('button');
+        btn.textContent = 'Spiel starten';
+        btn.onclick = () => setupGame(input.value.split(',').map(x => x.trim()));
+        app.append(input, btn);
+      }
+
+      if (state.phase === 'playing') {
+        const info = document.createElement('div');
+        const currentPlayer = state.players[state.currentTurn];
+        info.textContent = `${currentPlayer.name}, gib ein Wort ein:`;
+
+        const input = document.createElement('input');
+        const btn = document.createElement('button');
+        btn.textContent = 'Einreichen';
+        btn.onclick = () => submitWord(currentPlayer.name, input.value);
+
+        const wordDisplay = document.createElement('div');
+        wordDisplay.textContent = currentPlayer.isImposter ? 'Dein Wort ist: ??? (du bist der Imposter)' : `Dein Wort ist: ${state.word}`;
+
+        app.append(info, wordDisplay, input, btn);
+      }
+
+      if (state.phase === 'voting') {
+        const list = document.createElement('ul');
+        state.roundWords.forEach(({ player, word }) => {
+          const li = document.createElement('li');
+          li.textContent = `${player}: ${word}`;
+          list.appendChild(li);
+        });
+
+        const voteInfo = document.createElement('div');
+        voteInfo.textContent = 'Wähle den Imposter:';
+
+        const voteButtons = state.players.map(p => {
+          const btn = document.createElement('button');
+          btn.textContent = p.name;
+          btn.onclick = () => vote(p.name);
+          return btn;
+        });
+
+        app.append(list, voteInfo, ...voteButtons);
+      }
+
+      if (state.phase === 'done') {
+        const restart = document.createElement('button');
+        restart.textContent = 'Neustarten';
+        restart.onclick = () => location.reload();
+        app.append(restart);
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
