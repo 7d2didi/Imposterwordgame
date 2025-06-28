@@ -1,4 +1,3 @@
-<!-- index.html - Verbessert: Reihenfolge, Rundenlogik, Namen -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -7,6 +6,7 @@
   <style>
     body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
     input, button { display: block; margin: 10px 0; padding: 8px; width: 100%; }
+    ul { padding-left: 1em; }
   </style>
 </head>
 <body>
@@ -16,10 +16,10 @@
   <script>
     let socket;
     let playerId = '';
-    let roomCode = '';
     let playerName = '';
-    let playerOrder = [];
-    let allPlayers = [];
+    let roomCode = '';
+    let currentTurn = '';
+    let order = [];
 
     const app = document.getElementById('app');
 
@@ -33,10 +33,10 @@
 
     function joinGame() {
       playerName = document.getElementById('nameInput').value.trim();
-      roomCode = document.getElementById('roomInput').value.trim();
+      roomCode = document.getElementById('roomInput').value.trim().toUpperCase();
       if (!playerName || !roomCode) return alert('Name und Raumcode eingeben!');
 
-      socket = new WebSocket('wss://imposter-server.onrender.com');
+      socket = new WebSocket('wss://imposter-server.onrender.com'); // 🔁 WSS-Adresse hier eintragen
 
       socket.onopen = () => {
         socket.send(JSON.stringify({ type: 'join', name: playerName, room: roomCode }));
@@ -53,42 +53,19 @@
 
         if (data.type === 'gameStart') {
           playerId = data.yourId;
-          playerOrder = data.order;
-          allPlayers = data.allPlayers;
+          order = data.order;
+          currentTurn = data.currentTurn;
 
-          const wordDisplay = data.word === '???' ? 'Du bist der IMPOSTER!' : `Geheimes Wort: <b>${data.word}</b>`;
-          app.innerHTML = `<p>${wordDisplay}</p><div id="turnArea"></div><div id="turnList"></div>`;
-        }
+          const wordText = data.word === '???'
+            ? '🤫 Du bist der <b>IMPOSTER</b>! Versuche unauffällig zu bleiben.'
+            : `🔐 Geheimes Wort: <b>${data.word}</b>`;
 
-        if (data.type === 'yourTurn') {
-          const name = allPlayers.find(p => p.id === data.playerId).name;
-          const turnArea = document.getElementById('turnArea');
-          if (data.playerId === playerId) {
-            turnArea.innerHTML = `<p>Du bist dran:</p>
-              <input id="wordInput" placeholder="Dein Hinweiswort" />
-              <button onclick="submitWord()">Wort abschicken</button>`;
-          } else {
-            turnArea.innerHTML = `<p>${name} ist am Zug...</p>`;
-          }
+          renderTurn(wordText, []);
         }
 
         if (data.type === 'turnUpdate') {
-          const list = data.turns.map(t => `<li><b>${t.name}</b>: ${t.word}</li>`).join('');
-          document.getElementById('turnList').innerHTML = `<h3>Bisherige Wörter:</h3><ul>${list}</ul>`;
-        }
-
-        if (data.type === 'chooseAction') {
-          const choice = document.createElement('div');
-          choice.innerHTML = `
-            <h3>Was wollt ihr tun?</h3>
-            <button onclick="voteNow()">Jetzt abstimmen</button>
-            <button onclick="continueRound()">Weitere Runde spielen</button>
-          `;
-          app.appendChild(choice);
-        }
-
-        if (data.type === 'newRound') {
-          document.getElementById('turnList').innerHTML = `<h3>Runde ${data.round + 1}:</h3>`;
+          currentTurn = data.currentTurn || currentTurn;
+          renderTurn(null, data.turns, data.allowVoting);
         }
 
         if (data.type === 'gameOver') {
@@ -99,6 +76,37 @@
       };
     }
 
+    function renderTurn(headerText, turns, allowVoting = false) {
+      const isMyTurn = currentTurn === playerName;
+      let html = '';
+
+      if (headerText) {
+        html += `<p>${headerText}</p>`;
+      }
+
+      html += `<p>🔄 Aktueller Spieler: <b>${currentTurn}</b></p>`;
+
+      if (isMyTurn) {
+        html += `
+          <input id="wordInput" placeholder="Dein Hinweiswort" />
+          <button onclick="submitWord()">Wort abschicken</button>
+        `;
+      }
+
+      if (turns && turns.length > 0) {
+        html += `<h3>Bisherige Hinweise:</h3><ul>${turns.map(t => `<li><b>${t.name}:</b> ${t.word}</li>`).join('')}</ul>`;
+      }
+
+      if (allowVoting) {
+        html += `
+          <button onclick="showVote()">🗳 Abstimmen</button>
+          <button onclick="sendNextRound()">🔁 Weitere Runde</button>
+        `;
+      }
+
+      app.innerHTML = html;
+    }
+
     function startGame() {
       socket.send(JSON.stringify({ type: 'start' }));
     }
@@ -107,28 +115,22 @@
       const word = document.getElementById('wordInput').value.trim();
       if (word) {
         socket.send(JSON.stringify({ type: 'submitWord', playerId, word }));
-        document.getElementById('wordInput').value = '';
       }
     }
 
-    function voteNow() {
-      const list = allPlayers.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-      app.innerHTML += `
-        <h3>Wähle den Imposter:</h3>
-        <select id="voteInput">${list}</select>
-        <button onclick="submitVote()">Abstimmen</button>
-      `;
+    function showVote() {
+      const voteList = order.map(name => `
+        <button onclick="vote('${name}')">${name}</button>
+      `).join('');
+      app.innerHTML += `<h3>Wähle den Imposter:</h3>${voteList}`;
     }
 
-    function submitVote() {
-      const targetId = document.getElementById('voteInput').value;
-      if (targetId) {
-        socket.send(JSON.stringify({ type: 'vote', targetId }));
-      }
+    function vote(name) {
+      socket.send(JSON.stringify({ type: 'vote', targetName: name }));
     }
 
-    function continueRound() {
-      socket.send(JSON.stringify({ type: 'continue' }));
+    function sendNextRound() {
+      socket.send(JSON.stringify({ type: 'nextRound' }));
     }
 
     showJoinScreen();
