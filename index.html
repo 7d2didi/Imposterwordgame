@@ -1,12 +1,12 @@
-<!-- index.html - Multiplayer Imposter Client -->
+<!-- index.html - Verbessert: Reihenfolge, Rundenlogik, Namen -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Imposter Lobby</title>
+  <title>Imposter Multiplayer</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    input, button { display: block; margin: 10px 0; padding: 8px; }
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    input, button { display: block; margin: 10px 0; padding: 8px; width: 100%; }
   </style>
 </head>
 <body>
@@ -17,6 +17,9 @@
     let socket;
     let playerId = '';
     let roomCode = '';
+    let playerName = '';
+    let playerOrder = [];
+    let allPlayers = [];
 
     const app = document.getElementById('app');
 
@@ -29,14 +32,14 @@
     }
 
     function joinGame() {
-      const name = document.getElementById('nameInput').value.trim();
+      playerName = document.getElementById('nameInput').value.trim();
       roomCode = document.getElementById('roomInput').value.trim();
-      if (!name || !roomCode) return alert('Name und Raumcode eingeben!');
+      if (!playerName || !roomCode) return alert('Name und Raumcode eingeben!');
 
       socket = new WebSocket('wss://imposter-server.onrender.com');
 
       socket.onopen = () => {
-        socket.send(JSON.stringify({ type: 'join', name, room: roomCode }));
+        socket.send(JSON.stringify({ type: 'join', name: playerName, room: roomCode }));
       };
 
       socket.onmessage = (msg) => {
@@ -50,25 +53,48 @@
 
         if (data.type === 'gameStart') {
           playerId = data.yourId;
+          playerOrder = data.order;
+          allPlayers = data.allPlayers;
+
           const wordDisplay = data.word === '???' ? 'Du bist der IMPOSTER!' : `Geheimes Wort: <b>${data.word}</b>`;
-          app.innerHTML = `
-            <p>${wordDisplay}</p>
-            <input id="wordInput" placeholder="Dein Hinweiswort" />
-            <button onclick="submitWord()">Wort abschicken</button>
-            <div id="turnList"></div>
-          `;
+          app.innerHTML = `<p>${wordDisplay}</p><div id="turnArea"></div><div id="turnList"></div>`;
+        }
+
+        if (data.type === 'yourTurn') {
+          const name = allPlayers.find(p => p.id === data.playerId).name;
+          const turnArea = document.getElementById('turnArea');
+          if (data.playerId === playerId) {
+            turnArea.innerHTML = `<p>Du bist dran:</p>
+              <input id="wordInput" placeholder="Dein Hinweiswort" />
+              <button onclick="submitWord()">Wort abschicken</button>`;
+          } else {
+            turnArea.innerHTML = `<p>${name} ist am Zug...</p>`;
+          }
         }
 
         if (data.type === 'turnUpdate') {
-          const list = data.turns.map(t => `<li><b>${t.playerId}</b>: ${t.word}</li>`).join('');
-          document.getElementById('turnList').innerHTML = `<h3>Bisherige Wörter:</h3><ul>${list}</ul>
-            <button onclick="showVote()">Jetzt abstimmen</button>`;
+          const list = data.turns.map(t => `<li><b>${t.name}</b>: ${t.word}</li>`).join('');
+          document.getElementById('turnList').innerHTML = `<h3>Bisherige Wörter:</h3><ul>${list}</ul>`;
+        }
+
+        if (data.type === 'chooseAction') {
+          const choice = document.createElement('div');
+          choice.innerHTML = `
+            <h3>Was wollt ihr tun?</h3>
+            <button onclick="voteNow()">Jetzt abstimmen</button>
+            <button onclick="continueRound()">Weitere Runde spielen</button>
+          `;
+          app.appendChild(choice);
+        }
+
+        if (data.type === 'newRound') {
+          document.getElementById('turnList').innerHTML = `<h3>Runde ${data.round + 1}:</h3>`;
         }
 
         if (data.type === 'gameOver') {
           app.innerHTML = data.imposter
-            ? `<h2>Team hat den Imposter entlarvt 🎉</h2><p>Es war: ${data.realImposter}</p>`
-            : `<h2>Imposter hat gewonnen 😈</h2><p>Es war: ${data.realImposter}</p>`;
+            ? `<h2>✅ Team hat den Imposter entlarvt!</h2><p>Es war: ${data.realImposter}</p>`
+            : `<h2>😈 Der Imposter hat gewonnen!</h2><p>Es war: ${data.realImposter}</p>`;
         }
       };
     }
@@ -85,19 +111,24 @@
       }
     }
 
-    function showVote() {
+    function voteNow() {
+      const list = allPlayers.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
       app.innerHTML += `
-        <h3>Abstimmen: Wer ist der Imposter?</h3>
-        <input id="voteInput" placeholder="Spieler-ID eingeben" />
+        <h3>Wähle den Imposter:</h3>
+        <select id="voteInput">${list}</select>
         <button onclick="submitVote()">Abstimmen</button>
       `;
     }
 
     function submitVote() {
-      const targetId = document.getElementById('voteInput').value.trim();
+      const targetId = document.getElementById('voteInput').value;
       if (targetId) {
         socket.send(JSON.stringify({ type: 'vote', targetId }));
       }
+    }
+
+    function continueRound() {
+      socket.send(JSON.stringify({ type: 'continue' }));
     }
 
     showJoinScreen();
